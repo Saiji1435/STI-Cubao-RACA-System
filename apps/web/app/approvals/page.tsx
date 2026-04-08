@@ -1,5 +1,5 @@
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { Check, X, Eye } from "lucide-react";
 
 const pendingRequests = [

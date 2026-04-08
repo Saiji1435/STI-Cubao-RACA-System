@@ -1,4 +1,4 @@
-import { Badge } from "../components/ui/badge";
+import { Badge } from "../../components/ui/badge";
 
 const inventoryItems = [
   { id: "1", name: "Projector Epson-01", status: "In Use", borrower: "IT Dept" },
