@@ -1,17 +1,22 @@
-// apps/web/lib/auth-client.ts
 import { createAuthClient } from "better-auth/react";
-// Import the specific types TS is complaining about
-import type { SessionQueryParams } from "better-auth/client"; 
 
-const client = createAuthClient({
-    baseURL: "http://localhost:3001",
-});
+// 1. Help TS by defining the config as a constant
+const authConfig = {
+    baseURL: "http://10.2.103.35:3001",
+    user: {
+        additionalFields: {
+            role: {
+                type: "string",
+            },
+        },
+    },
+} as const;
 
-// Explicitly type the exports to satisfy the 'portable' requirement
-export const authClient = client;
+// 2. Explicitly type the client to resolve the 'Portable' error
+export const authClient: ReturnType<typeof createAuthClient> = createAuthClient(authConfig);
 
-// For the hooks, use the explicit return types from the client
-export const useSession: typeof client.useSession = client.useSession;
-export const signIn: typeof client.signIn = client.signIn;
-export const signUp: typeof client.signUp = client.signUp;
-export const signOut: typeof client.signOut = client.signOut;
+// 3. Export hooks individually with explicit types
+export const useSession: typeof authClient.useSession = authClient.useSession;
+export const signIn: typeof authClient.signIn = authClient.signIn;
+export const signUp: typeof authClient.signUp = authClient.signUp;
+export const signOut: typeof authClient.signOut = authClient.signOut;

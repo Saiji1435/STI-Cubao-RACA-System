@@ -1,42 +1,59 @@
-export default function Dashboard() {
+"use client";
+
+import { useSession } from "../../lib/auth-client";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { FileText, CheckCircle, Clock } from "lucide-react";
+import Link from "next/link";
+import { Button } from "../../components/ui/button";
+
+export default function OverviewPage() {
+  const { data: session } = useSession();
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 py-10">
-      {/* Centered Stats from your drawing */}
-      <div className="flex justify-center gap-10">
-        <button className="px-8 py-4 border-2 border-black rounded-xl font-bold hover:bg-slate-50 transition-colors">
-          Available Items
-        </button>
-        <button className="px-8 py-4 border-2 border-black rounded-xl font-bold hover:bg-slate-50 transition-colors">
-          Available Rooms
-        </button>
+    <div className="p-8 space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">System Overview</h1>
+        <p className="text-muted-foreground">Welcome back, {session?.user?.name}.</p>
       </div>
 
-      {/* Main Request Form - Clean & Minimalist */}
-      <div className="bg-white border-2 border-black rounded-2xl p-8 shadow-[8px_8px_0px_rgba(0,0,0,1)]">
-        <h2 className="text-xl font-black mb-6 uppercase italic">New Facility Request</h2>
-        
-        <form className="space-y-4">
-          <input type="file" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-          
-          <select className="w-full p-3 border-2 border-black rounded-lg font-bold outline-none focus:ring-2 focus:ring-yellow-400">
-            <option>Select a Room</option>
-          </select>
+      {/* Quick Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Pending RACAs</CardTitle>
+            <Clock className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">3</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Approved Requests</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Items Filed</CardTitle>
+            <FileText className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">15</div>
+          </CardContent>
+        </Card>
+      </div>
 
-          <select className="w-full p-3 border-2 border-black rounded-lg font-bold outline-none focus:ring-2 focus:ring-yellow-400">
-            <option>Select Items</option>
-          </select>
-
-          <div className="grid grid-cols-2 gap-4">
-            <input type="time" placeholder="Start Time" className="p-3 border-2 border-black rounded-lg font-bold" />
-            <input type="time" placeholder="End Time" className="p-3 border-2 border-black rounded-lg font-bold" />
-          </div>
-
-          <textarea placeholder="Purpose (e.g., Department Meeting)" className="w-full p-3 border-2 border-black rounded-lg font-bold min-h-[100px]" />
-
-          <button className="w-full bg-[#FFD447] border-2 border-black py-4 rounded-xl font-black uppercase tracking-widest hover:translate-y-[-2px] hover:shadow-[0_4px_0_rgba(0,0,0,1)] active:translate-y-[0px] transition-all">
-            Submit Request
-          </button>
-        </form>
+      {/* Quick Action Card */}
+      <div className="rounded-xl border bg-card p-10 text-center shadow-sm">
+        <h3 className="text-lg font-semibold mb-2">Need to file a new activity?</h3>
+        <p className="text-muted-foreground mb-6">Head over to the RACA Filing section to submit your request and digital signature.</p>
+        <Link href="/dashboard/raca">
+          <Button size="lg">Go to RACA Filing</Button>
+        </Link>
       </div>
     </div>
   );
