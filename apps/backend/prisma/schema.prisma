@@ -7,7 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// --- Better Auth Required Models ---
 model User {
   id            String      @id @default(uuid())
   email         String      @unique
@@ -20,11 +19,8 @@ model User {
   accounts      Account[]
   logs          EventLog[]
   requests      Request[]
-  
-  // ADDED: Opposite relations for RACA and Approval
   racas         Raca[]      
   approvals     Approval[]  
-
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -74,21 +70,23 @@ enum Role {
   STAFF
 }
 
-// --- Business Logic Models ---
+enum ItemCondition {
+  GOOD
+  DEFECTIVE
+  REPAIR_PENDING
+}
 
 model Room {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
   floor       String?
   type        String?
   description String?
-  capacity    Int          @default(50) 
+  capacity    Int         @default(50) 
   items       Item[]      
   inventory   Inventory[]
   schedules   Schedule[]
   requests    Request[]
-  
-  // ADDED: Opposite relation for RACA
   racas       Raca[]       
 }
 
@@ -97,12 +95,15 @@ model Request {
   title       String
   description String?  @db.Text
   status      String   @default("PENDING")
+
+  // Adding these makes your system "Schedule-Aware"
+  startDate   DateTime @default(now()) 
+  endDate     DateTime @default(now())
   
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   roomId      Int
   room        Room     @relation(fields: [roomId], references: [id])
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -111,56 +112,47 @@ model Item {
   id       Int    @id @default(autoincrement())
   name     String @unique
   quantity Int    @default(0) 
-
   roomId   Int?   
   room     Room?  @relation(fields: [roomId], references: [id])
 }
 
 model Inventory {
-  id          String @id @default(uuid())
+  id          String        @id @default(uuid())
   itemName    String
-  quantity    Int    @default(0)
+  quantity    Int           @default(0)
   imageUrl    String?
+  condition   ItemCondition @default(GOOD)
   roomId      Int
-  room        Room   @relation(fields: [roomId], references: [id])
-
+  room        Room          @relation(fields: [roomId], references: [id])
   racaRecords Raca[]
   checkouts   ItemCheckout[] 
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  logs        EventLog[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model Raca {
-  id                String     @id @default(uuid())
+  id                String      @id @default(uuid())
   requestorId       String
-  requestor         User       @relation(fields: [requestorId], references: [id])
-  
+  requestor         User        @relation(fields: [requestorId], references: [id])
   natureOfActivity  String
-  objectives        String     @db.Text
+  objectives        String      @db.Text
   startDate         DateTime
   endDate           DateTime
   expectedAudience  Int?
   speaker           String?
-  
   roomId            Int?
-  room              Room?      @relation(fields: [roomId], references: [id])
+  room              Room?       @relation(fields: [roomId], references: [id])
   otherVenue        String?
-  
-  // ADDED: Inventory relation to match Inventory.racaRecords
   inventoryId       String?
-  inventory         Inventory? @relation(fields: [inventoryId], references: [id])
-
-  status            String     @default("PENDING_HEAD_APPROVAL") 
-  
+  inventory         Inventory?  @relation(fields: [inventoryId], references: [id])
+  status            String      @default("PENDING_HEAD_APPROVAL") 
   filePath          String?    
   eventLogs         EventLog[]
   approvals         Approval[] 
-  
-  // ADDED: Opposite relation for Schedule
   schedule          Schedule?
-
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model Schedule {
@@ -169,13 +161,10 @@ model Schedule {
   endTime   DateTime
   attendees Int      @default(1) 
   status    String   @default("PENDING") 
-
   roomId    Int
   room      Room     @relation(fields: [roomId], references: [id])
-
   racaId    String?  @unique
   raca      Raca?    @relation(fields: [racaId], references: [id])
-  
   itemsUsed ItemCheckout[]
   createdAt DateTime @default(now())
 }
@@ -190,14 +179,16 @@ model ItemCheckout {
 }
 
 model EventLog {
-  id        String   @id @default(uuid())
-  action    String 
-  summary   String   @db.Text
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  racaId    String?
-  raca      Raca?    @relation(fields: [racaId], references: [id])
-  createdAt DateTime @default(now())
+  id          String     @id @default(uuid())
+  action      String 
+  summary     String     @db.Text
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  racaId      String?
+  raca        Raca?      @relation(fields: [racaId], references: [id])
+  inventoryId String?
+  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
+  createdAt   DateTime   @default(now())
 }
 
 model Approval {

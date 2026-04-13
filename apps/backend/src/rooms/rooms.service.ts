@@ -6,8 +6,10 @@ export class RoomsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.room.findMany({ include: { items: true } });
-  }
+      return this.prisma.room.findMany({
+        orderBy: { name: 'asc' }, // Keeps the list organized
+      });
+    }
 
   async create(data: { name: string; description?: string }) {
     return this.prisma.room.create({ data });

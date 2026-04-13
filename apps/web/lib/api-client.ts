@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://10.2.103.35:3001',
   withCredentials: true, // 👈 CRITICAL: This sends the session cookie to NestJS
   headers: {
     'Content-Type': 'application/json',

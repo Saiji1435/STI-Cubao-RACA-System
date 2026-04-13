@@ -10,12 +10,11 @@ async function bootstrap() {
   // 1. UPDATE CORS: Allow both localhost and your network IP
   app.enableCors({
     origin: [
-      "http://localhost:3000",
       "http://10.2.103.35:3000" // Add your frontend IP here
     ],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
+    allowedHeaders: 'Content-Type, Accept, Authorization, Cookie',
   });
 
   app.useGlobalPipes(new ValidationPipe({

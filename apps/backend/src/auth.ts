@@ -8,6 +8,15 @@ export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
+
+    // --- NEW: ORIGIN & NETWORK CONFIGURATION ---
+    // This must match your backend port (3001)
+    baseURL: "http://10.2.103.35:3001", 
+    
+    // This allows your frontend (3000) to communicate with the auth server
+    trustedOrigins: ["http://10.2.103.35:3000"],
+    // --------------------------------------------
+
     emailAndPassword: {
         enabled: true
     },
@@ -20,7 +29,6 @@ export const auth = betterAuth({
             },
         },
     },
-    // --- ADDED HOOK FOR AUTOMATIC ROLE ASSIGNMENT ---
     databaseHooks: {
         user: {
             create: {

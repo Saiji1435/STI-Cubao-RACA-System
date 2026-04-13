@@ -1,71 +1,49 @@
+// request.controller.ts
 import { 
-  Controller, 
-  Get, 
-  Post, 
-  Patch, 
-  UseGuards, 
-  ForbiddenException, 
-  UseInterceptors, 
-  UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator
+  Controller, Get, Post, Patch, Body, Param, UseGuards, ForbiddenException 
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard, Session, UserSession } from '@thallesp/nestjs-better-auth';
-import { RacaService } from '../raca/raca.service';
+import { RequestService } from './request.service';
 import { Role } from '@prisma/client';
+import { CreateRequestDto } from './domain/create-request.dto';
 
-@Controller('raca')
+@Controller('requests')
 @UseGuards(AuthGuard)
-export class RacaController {
-  constructor(private readonly racaService: RacaService) {}
+export class RequestController {
+  constructor(private readonly requestService: RequestService) {}
 
-  // 1. View Files: Role-based filtering
-  @Get('files')
-  async getFiles(@Session() session: UserSession) {
-    const user = session.user;
-
-    // ADMIN and LAB_CUSTODIAN see everything
-    if (user.role === Role.ADMIN || user.role === Role.LAB_CUSTODIAN) {
-      return this.racaService.findAll();
+  @Get()
+  async getRequests(@Session() session: UserSession) {
+    const { user } = session;
+    console.log(`User ${user.id} with role ${user.role} is fetching requests.`);
+    if (user.role === Role.ADMIN || user.role === Role.HEAD) {
+      return this.requestService.findAll();
     }
-
-    // STAFF can only see files where they are the owner
-    // This assumes your findByUser method exists in the service
-    // return this.racaService.findByUser(user.id); 
-    return { message: 'Filtering for staff user', userId: user.id };
+    return this.requestService.findByUser(user.id);
   }
 
-  // 2. Scan/Upload: STAFF and LAB_CUSTODIAN can upload items
-  @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(
+// request.controller.ts
+  @Post()
+  async createRequest(
     @Session() session: UserSession,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
-          new FileTypeValidator({ fileType: /(pdf|text\/plain)/ }),
-        ],
-      }),
-    ) file: Express.Multer.File,
+    @Body() createRequestDto: CreateRequestDto // Enforces the DTO rules
   ) {
-    // Role check: Only Staff and Lab Custodian allowed to upload
     if (session.user.role === Role.ADMIN) {
-        throw new ForbiddenException('Admins review records; Staff/Custodians upload them.');
+      throw new ForbiddenException('Admins should use the Schedule module.');
     }
 
-    return this.racaService.scanFileAndSuggestItems(file);
+    return this.requestService.create(session.user.id, createRequestDto);
   }
 
-  // 3. Admin Edit: Only ADMINs can edit the final RACA data
-  @Patch(':id/edit-official')
-  async adminEdit(@Session() session: UserSession) {
-    if (session.user.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only Admins can modify official RACA records.');
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Session() session: UserSession
+  ) {
+    if (session.user.role !== Role.ADMIN && session.user.role !== Role.HEAD) {
+      throw new ForbiddenException('Permission denied.');
     }
-    
-    return { message: 'Official record updated by Admin' };
+    return this.requestService.updateStatus(id, status);
   }
 }

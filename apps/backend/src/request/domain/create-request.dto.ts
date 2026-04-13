@@ -1,23 +1,24 @@
-import { IsNotEmpty, IsString, IsInt, IsOptional } from 'class-validator';
+// create-request.dto.ts
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class CreateRequestDto {
   @IsNotEmpty()
   @IsString()
-  title!: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsNotEmpty()
-  @IsInt()
-  roomId!: number;
+  purpose!: string; // Maps to Schema 'title'
 
   @IsNotEmpty()
   @IsString()
-  userId!: string;
+  roomName!: string; // We will use this to find the roomId
 
   @IsOptional()
   @IsString()
-  status?: string; 
+  items?: string; // Maps to Schema 'description'
+
+  @IsNotEmpty()
+  @IsString()
+  startTime!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  endTime!: string;
 }

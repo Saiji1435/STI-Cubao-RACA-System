@@ -1,20 +1,11 @@
-import { Controller, Get, Patch, Param, Body } from '@nestjs/common';
+import { Module } from '@nestjs/common';
+import { RequestController } from './request.controller';
 import { RequestService } from './request.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 
-@Controller('request')
-export class RequestController {
-  constructor(private readonly requestService: RequestService) {}
-
-  @Get('pending')
-  async getPending() {
-    return this.requestService.findPending();
-  }
-
-  @Patch(':id/status')
-  async updateStatus(
-    @Param('id') id: string, 
-    @Body('status') status: string
-  ) {
-    return this.requestService.updateStatus(id, status);
-  }
-}
+@Module({
+  controllers: [RequestController],
+  providers: [RequestService, PrismaService],
+  exports: [RequestService],
+})
+export class RequestModule {}

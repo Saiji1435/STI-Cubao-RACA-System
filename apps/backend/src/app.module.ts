@@ -12,6 +12,8 @@ import { UsersModule } from './users/users.module';
 import { ItemsModule } from './items/items.module';
 import { RacaModule } from './raca/raca.module';
 import { EventLogsModule } from './event-logs/event-logs.module';
+import { RequestModule } from './request/request.module';
+import { request } from 'http';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { EventLogsModule } from './event-logs/event-logs.module';
     ItemsModule,
     RacaModule,
     EventLogsModule,
+    RequestModule,
   ],
 })
 export class AppModule {}

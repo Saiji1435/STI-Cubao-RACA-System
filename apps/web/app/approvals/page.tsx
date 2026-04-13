@@ -1,41 +1,38 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "../../lib/api"; // Ensure this has credentials: 'include'
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Check, X, Eye, Loader2, Inbox } from "lucide-react";
+// 1. Import your new custom hooks
+import { useAuth } from "../../hooks/use-auth";
+import { useRaca } from "../../hooks/use-raca";
 
 export default function ApprovalsPage() {
-  const queryClient = useQueryClient();
+  // 2. Access auth state (checks if you are HEAD or ADMIN)
+  const { isPrivileged, isPending: authLoading } = useAuth();
+  
+  // 3. Access RACA data and mutation methods
+  const { usePendingRequests, useUpdateStatus } = useRaca();
+  const { data: requests, isLoading: dataLoading } = usePendingRequests();
+  const mutation = useUpdateStatus();
 
-  // 1. Fetch Real Data from NestJS
-  const { data: requests, isLoading } = useQuery({
-    queryKey: ["approvals-pending"],
-    queryFn: () => apiFetch("/requests/pending"),
-  });
+  // 4. Permission Guard: If they aren't authorized, don't show the queue
+  if (!authLoading && !isPrivileged) {
+    return (
+      <div className="p-20 text-center">
+        <h2 className="text-red-600 font-black uppercase tracking-widest">Access Denied</h2>
+        <p className="text-xs text-slate-500">Only the Department Head or Admin can access this queue.</p>
+      </div>
+    );
+  }
 
-  // 2. Handle Status Update (Approve/Deny)
-  const mutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/requests/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error("Failed to update status");
-      return res.json();
-    },
-    onSuccess: () => {
-      // Invalidate and refetch to clear the item from the list
-      queryClient.invalidateQueries({ queryKey: ["approvals-pending"] });
-    },
-  });
-
-  if (isLoading) return (
+  // 5. Loading State
+  if (dataLoading || authLoading) return (
     <div className="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
       <Loader2 className="animate-spin" />
-      <span className="text-[10px] font-black uppercase tracking-widest">Loading Approval Queue...</span>
+      <span className="text-[10px] font-black uppercase tracking-widest text-center">
+        Syncing with STI Cubao Database...
+      </span>
     </div>
   );
 
@@ -46,7 +43,7 @@ export default function ApprovalsPage() {
           <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Pending Approvals</h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">STI College Cubao | RACA Queue</p>
         </div>
-        <Badge className="bg-blue-600 text-white border-none">
+        <Badge className="bg-blue-600 text-white border-none px-3 py-1">
           {requests?.length || 0} New Requests
         </Badge>
       </div>
@@ -84,6 +81,7 @@ export default function ApprovalsPage() {
               >
                 <Eye size={14} /> Details
               </Button>
+              
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -91,15 +89,18 @@ export default function ApprovalsPage() {
                 disabled={mutation.isPending}
                 className="flex-1 md:flex-none gap-2 text-red-600 hover:bg-red-50 border-red-100 text-[10px] font-black uppercase tracking-widest"
               >
-                <X size={14} /> Deny
+                {mutation.isPending ? <Loader2 className="animate-spin" size={14} /> : <X size={14} />} 
+                Deny
               </Button>
+              
               <Button 
                 size="sm" 
                 onClick={() => mutation.mutate({ id: req.id, status: "APPROVED" })}
                 disabled={mutation.isPending}
                 className="flex-1 md:flex-none gap-2 bg-emerald-600 hover:bg-emerald-700 text-[10px] font-black uppercase tracking-widest"
               >
-                <Check size={14} /> Approve
+                {mutation.isPending ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                Approve
               </Button>
             </div>
           </div>

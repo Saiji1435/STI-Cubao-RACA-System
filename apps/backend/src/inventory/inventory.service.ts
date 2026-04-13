@@ -1,23 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
-import { Prisma } from '@prisma/client'; // Import the Prisma namespace
+import { Prisma, ItemCondition } from '@prisma/client';
 
 @Injectable()
 export class InventoryService {
   constructor(private prisma: PrismaService) {}
 
-  // Fetch all inventory items
   async findAll() {
     return this.prisma.inventory.findMany({
       include: { room: true },
     });
   }
 
-  // Add a new item using Prisma's generated Create Input type
-  async create(data: Prisma.InventoryUncheckedCreateInput) {
-    // InventoryUncheckedCreateInput allows you to pass roomId directly as a string
-    return this.prisma.inventory.create({ 
-      data 
+  async markDefective(id: string, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const item = await tx.inventory.update({
+        where: { id },
+        data: { condition: ItemCondition.DEFECTIVE },
+      });
+
+      await tx.eventLog.create({
+        data: {
+          action: 'REPORT_DAMAGE',
+          summary: `Asset ${item.itemName} was marked as DEFECTIVE.`,
+          userId: userId,
+          inventoryId: id,
+        },
+      });
+
+      return item;
     });
   }
 }

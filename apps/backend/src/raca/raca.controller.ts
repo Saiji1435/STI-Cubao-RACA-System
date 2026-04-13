@@ -1,68 +1,51 @@
 import { 
-  Controller, Get, Post, Body, UseInterceptors, UploadedFile, 
-  ParseFilePipe, MaxFileSizeValidator, FileTypeValidator, UseGuards 
+  Controller, Get, Post, Patch, UseGuards, ForbiddenException, 
+  UseInterceptors, UploadedFile, ParseFilePipe, MaxFileSizeValidator, 
+  FileTypeValidator, Param, Body 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { AuthGuard, Session, UserSession } from '@thallesp/nestjs-better-auth';
 import { RacaService } from './raca.service';
-import { CreateRacaDto } from './domain/create-raca.dto';
-import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import { Role } from '@prisma/client';
 
 @Controller('raca')
-export class RacaController {
+@UseGuards(AuthGuard)
+export class RacaController { // Ensure 'export' is here
   constructor(private readonly racaService: RacaService) {}
 
-  @Get()
-  @UseGuards(AuthGuard)
-  findAll() {
-    return this.racaService.findAll();
+  @Get('files')
+  async getFiles(@Session() session: UserSession) {
+    const { user } = session;
+    if (user.role === Role.ADMIN || user.role === Role.HEAD) {
+      return this.racaService.findAll();
+    }
+    return this.racaService.findByUser(user.id);
   }
 
-  // Requestor Submits RACA
-  @Post('upload-raca')
-  @UseGuards(AuthGuard)
-  @UseInterceptors(FileInterceptor('signature', {
-    storage: diskStorage({
-      destination: './apps/web/components/signatures',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        callback(null, `sig-req-${uniqueSuffix}${extname(file.originalname)}`);
-      },
-    }),
-  }))
-  create(
-    @Body() createRacaDto: CreateRacaDto,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    return this.racaService.createWithWorkflow(createRacaDto, file.path);
-  }
-
-  // NEW: Approver Signs RACA (Head or Admin)
-  @Post('approve')
-  @UseGuards(AuthGuard)
-  @UseInterceptors(FileInterceptor('signature', {
-    storage: diskStorage({
-      destination: './apps/web/components/signatures',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        callback(null, `sig-appr-${uniqueSuffix}${extname(file.originalname)}`);
-      },
-    }),
-  }))
-  approve(
-    @Body('racaId') racaId: string,
-    @Body('approverId') approverId: string,
-    @Body('role') role: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    return this.racaService.approveRaca(racaId, approverId, role, file.path);
-  }
-
-  @Post('scan')
-  @UseGuards(AuthGuard)
+  @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  async scanFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadFile(
+    @Session() session: UserSession,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
+          new FileTypeValidator({ fileType: /(pdf|text\/plain)/ }),
+        ],
+      }),
+    ) file: Express.Multer.File,
+  ) {
+    if (session.user.role === Role.ADMIN) {
+        throw new ForbiddenException('Admins review records; Faculty/Staff upload them.');
+    }
     return this.racaService.scanFileAndSuggestItems(file);
+  }
+
+  @Patch(':id/edit-official')
+  async adminEdit(@Param('id') id: string, @Session() session: UserSession) {
+    if (session.user.role !== Role.ADMIN && session.user.role !== Role.HEAD) {
+      throw new ForbiddenException('Unauthorized.');
+    }
+    return this.racaService.updateOfficialRecord(id); 
   }
 }
