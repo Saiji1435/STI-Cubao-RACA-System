@@ -81,7 +81,7 @@ function AdminDashboardView() {
   const filteredRequests = requests.filter((req) => {
     const search = searchTerm.toLowerCase();
     return (
-      req.purpose?.toLowerCase().includes(search) ||
+      req.description?.toLowerCase().includes(search) ||
       req.room?.name?.toLowerCase().includes(search) || // Note: req.room.name
       req.user?.name?.toLowerCase().includes(search)    // Note: req.user.name
     );
@@ -145,7 +145,7 @@ function AdminDashboardView() {
                             <span className="text-xs font-medium text-slate-600">{req.room?.name || "N/A"}</span>
                          </div>
                       </td>
-                      <td className="p-4 text-xs text-slate-600 italic truncate max-w-[200px]">"{req.purpose}"</td>
+                      <td className="p-4 text-xs text-slate-600 italic truncate max-w-[200px]">"{req.description}"</td>
                       <td className="p-4">
                         <span className={`text-[9px] font-black px-2 py-1 rounded-full uppercase ${
                           req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
