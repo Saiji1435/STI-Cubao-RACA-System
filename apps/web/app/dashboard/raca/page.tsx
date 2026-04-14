@@ -6,192 +6,176 @@ import { useSession } from "../../../lib/auth-client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table"; 
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
-import { Loader2, Activity, MapPin } from "lucide-react"; 
+import { Loader2, Check, X, Clock } from "lucide-react"; 
 import { submitRacaRequest } from "../../../lib/actions";
 
 export default function RacaFilingPage() {
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [racas, setRacas] = useState<any[]>([]);
-  const [rooms, setRooms] = useState<any[]>([]); // State for dropdown
-  const API_BASE = "http://10.2.103.35:3001";
-
+  const [rooms, setRooms] = useState<any[]>([]);
   const [state, formAction, isPending] = useActionState(submitRacaRequest, null);
 
-  // Fetch Rooms for the dropdown
-  const fetchRooms = async () => {
+  const API_BASE = "http://10.2.103.35:3001";
+  const isAdminOrHead = session?.user?.role === "ADMIN" || session?.user?.role === "HEAD";
+
+  const fetchRacas = async () => {
+    setIsLoading(true);
     try {
-      console.log("Fetching rooms from:", `${API_BASE}/rooms`);
-      const response = await fetch(`${API_BASE}/rooms`);
-      
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
+      const response = await fetch(`${API_BASE}/requests`, { credentials: "include" });
       const data = await response.json();
-      console.log("Rooms received:", data); // Check if this shows the array in console
-      
-      setRooms(Array.isArray(data) ? data : []);
+      setRacas(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Fetch error details:", error);
-      toast.error("Failed to load room list");
+      toast.error("Could not sync with STI Cubao Database");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const fetchRacas = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${API_BASE}/requests`, {
-          credentials: "include", 
-        });
-        const data = await response.json();
-        
-        // The backend already handles filtering! 
-        // If I'm Faculty, the backend only sends my requests.
-        // If I'm Admin, it sends everything.
-        setRacas(Array.isArray(data) ? data : []);
-        
-      } catch (error) {
-        console.error("Failed to fetch RACAs", error);
-        toast.error("Could not sync with STI Cubao Database");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const handleStatusUpdate = async (id: string, newStatus: "APPROVED" | "DENIED") => {
+    try {
+      const response = await fetch(`${API_BASE}/requests/${id}/status`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) throw new Error();
+      
+      const updatedRequest = await response.json();
+      
+      // Update local state with fresh data from backend (includes new approval count)
+      setRacas((prev) => prev.map((r) => (r.id === id ? updatedRequest : r)));
+      
+      toast.success(newStatus === "APPROVED" ? "Approval recorded" : "Request Denied");
+    } catch (error) {
+      toast.error("Update failed. You may have already voted or lack permissions.");
+    }
+  };
 
   useEffect(() => {
-    fetchRooms(); // Load rooms immediately
-    if (session) {
-      fetchRacas(); // Only load private RACA data if session exists
-    }
+    fetch(`${API_BASE}/rooms`).then(res => res.json()).then(setRooms);
+    if (session) fetchRacas();
   }, [session]);
 
   useEffect(() => {
     if (state?.success) {
-      toast.success("RACA Request Logged Successfully!");
+      toast.success("RACA Request Logged!");
       fetchRacas();
-    } else if (state?.error) {
-      toast.error(state.error);
     }
   }, [state]);
 
   return (
     <div className="space-y-10 p-6">
-      <div>
-        <h1 className="text-3xl font-black tracking-tighter uppercase text-slate-900">RACA Management</h1>
-        <p className="text-muted-foreground text-[10px] uppercase tracking-widest font-bold">
-          STI College Cubao | Activity & Venue Filing
-        </p>
-      </div>
+      <header>
+        <h1 className="text-3xl font-black uppercase text-slate-900 tracking-tighter">RACA Management</h1>
+      </header>
 
+      {/* FORM SECTION */}
       <section className="max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-slate-900 p-4 text-white font-bold text-[10px] uppercase tracking-widest flex items-center gap-2">
-            <Activity size={14} className="text-blue-400" />
-            Manual RACA Entry
-          </div>
-          
-          <form action={formAction} className="p-5 space-y-4">
-            <div className="space-y-3">
-              {/* DROPDOWN FOR ROOMS */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
-                  <MapPin size={10} /> Location / Room
-                </label>
-                <select 
-                  required 
-                  name="roomName" // Must match your DTO/Action key
-                  defaultValue=""
-                  className="w-full bg-slate-50 border p-2.5 rounded text-xs outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                >
-                  <option value="" disabled>Select a venue...</option>
-                  {rooms.map((room) => (
-                    <option key={room.id} value={room.name}>
-                      {room.name} — {room.floor} Floor
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-500">Equipment Needed</label>
-                <input required name="items" placeholder="Projector, Microphones..." className="w-full bg-slate-50 border p-2.5 rounded text-xs outline-none focus:border-blue-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-slate-500">Start Time</label>
-                  <input required name="startTime" type="datetime-local" className="w-full bg-slate-50 border p-2 text-[10px] rounded" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-slate-500">End Time</label>
-                  <input required name="endTime" type="datetime-local" className="w-full bg-slate-50 border p-2 text-[10px] rounded" />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-500">Activity Purpose</label>
-                <textarea required name="purpose" placeholder="Briefly describe the event objectives..." className="w-full bg-slate-50 border p-2.5 rounded text-xs h-24" />
-              </div>
-              
-              <button 
-                type="submit"
-                disabled={isPending} 
-                className="w-full bg-blue-600 text-white py-3 rounded font-black text-[11px] uppercase tracking-tighter hover:bg-blue-700 transition-all disabled:opacity-50 flex justify-center items-center"
-              >
-                {isPending ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Processing...</> : "Submit RACA Request"}
-              </button>
-            </div>
+        <div className="lg:col-span-5 bg-white rounded-xl border p-5 shadow-sm">
+          <form action={formAction} className="space-y-4">
+             <select required name="roomName" className="w-full bg-slate-50 border p-2.5 rounded text-xs outline-none">
+                <option value="">Select Venue...</option>
+                {rooms.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+             </select>
+             <input required name="items" placeholder="Equipment needed..." className="w-full bg-slate-50 border p-2.5 rounded text-xs" />
+             <div className="grid grid-cols-2 gap-2">
+                <input required name="startTime" type="datetime-local" className="bg-slate-50 border p-2 text-[10px] rounded" />
+                <input required name="endTime" type="datetime-local" className="bg-slate-50 border p-2 text-[10px] rounded" />
+             </div>
+             <textarea required name="purpose" placeholder="Purpose of activity..." className="w-full bg-slate-50 border p-2.5 rounded text-xs h-24" />
+             <Button type="submit" disabled={isPending} className="w-full bg-blue-600 font-bold uppercase text-[10px]">
+                {isPending ? "Filing..." : "Submit RACA"}
+             </Button>
           </form>
         </div>
-
-        <div className="lg:col-span-7 bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col justify-center">
-          <h3 className="text-blue-900 font-black uppercase text-sm mb-2">Notice to Faculty & Staff</h3>
-          <p className="text-blue-700 text-xs leading-relaxed mb-4">
-            All campus activities must be filed at least **2 days** in advance. Ensure that the room is available in the Schedules tab before submitting this form.
-          </p>
-          <div className="flex gap-2">
-             <Badge className="bg-blue-600">STI Cubao</Badge>
-             <Badge variant="outline" className="border-blue-300 text-blue-600 uppercase text-[9px]">v2.0 Beta</Badge>
-          </div>
+        <div className="lg:col-span-7 bg-amber-50 p-6 rounded-xl border border-amber-100 flex flex-col justify-center">
+           <h3 className="text-amber-900 font-black uppercase text-xs mb-2 flex items-center gap-2"><Clock size={14}/> Important</h3>
+           <p className="text-amber-800 text-xs">Ensure all required fields are accurate. Approvals are final but can be modified by the Department Head if necessary.</p>
         </div>
       </section>
 
-      {/* TRACKING TABLE SECTION */}
+      {/* TRACKING SECTION */}
       <section className="space-y-4">
-        <h2 className="text-lg font-black uppercase tracking-tight text-slate-800">Your Filing History</h2>
-        <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
+        <h2 className="text-lg font-black uppercase text-slate-800">Tracking Logs</h2>
+        <div className="border rounded-xl bg-white overflow-hidden shadow-sm">
           <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50">
-                <TableHead className="text-[10px] font-black uppercase">Activity / Nature</TableHead>
-                <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                <TableHead className="text-right text-[10px] font-black uppercase">Action</TableHead>
-                <TableHead className="text-right text-[10px] font-black uppercase">Date Filed</TableHead>                
-                 </TableRow>
+            <TableHeader className="bg-slate-50">
+              <TableRow>
+                <TableHead className="text-[10px] uppercase font-black px-6">Staff</TableHead>
+                <TableHead className="text-[10px] uppercase font-black">Activity</TableHead>
+                <TableHead className="text-[10px] uppercase font-black">Status</TableHead>
+                <TableHead className="text-[10px] uppercase font-black text-center">Items</TableHead>
+                <TableHead className="text-[10px] uppercase font-black text-right">Venue</TableHead>
+                {isAdminOrHead && <TableHead className="text-right text-[10px] uppercase font-black px-6">Management Actions</TableHead>}
+              </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-32 text-center">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-slate-300" />
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={isAdminOrHead ? 6 : 5} className="text-center p-8"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
               ) : (
-                racas.map((raca) => (
-                  <TableRow key={raca.id} className="hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="font-bold text-slate-700 text-xs">{raca.title || raca.purpose || "Untitled Activity"}</TableCell>
-                    <TableCell>
-                      <Badge variant={raca.status === "APPROVED" ? "default" : "secondary"} className="text-[9px] font-black px-2 py-0.5">
-                        {raca.status?.replace(/_/g, " ") || "PENDING"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                       <span className="text-[10px] text-slate-400 mr-2">{raca.room?.name}</span>
-                    </TableCell>
-                    <TableCell className="text-right text-[10px] text-slate-400 font-bold">
-                      {new Date(raca.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))
+                racas.map((r) => {
+                  const hasVoted = r.approvals?.some((a: any) => a.approverId === session?.user?.id);
+                  
+                  return (
+                    <TableRow key={r.id} className="hover:bg-slate-50/50">
+                      <TableCell className="px-6 py-4">
+                        <p className="text-xs font-bold">{r.user?.name || "Staff Member"}</p>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <p className="text-[10px] text-slate-500 italic max-w-[150px] truncate">"{r.title || r.purpose}"</p>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Badge className={`text-[9px] font-black px-2 py-0.5 w-fit ${
+                            r.status === 'APPROVED' ? 'bg-emerald-500' : 
+                            r.status === 'DENIED' ? 'bg-red-500' : 'bg-amber-400 text-black'
+                          }`}>
+                            {r.status || "PENDING"}
+                          </Badge>
+                          {r.status === 'PENDING' && (
+                            <span className="text-[9px] text-slate-400 font-bold">{r.approvals?.length || 0}/10 Signed</span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <p className="text-[10px] text-slate-600 font-medium">{r.description || "No items listed"}</p>
+                      </TableCell>
+
+                      <TableCell className="text-right text-xs font-bold text-slate-500">{r.room?.name || "Other Venue"}</TableCell>
+                      
+                      {isAdminOrHead && (
+                        <TableCell className="text-right px-6">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              size="sm" 
+                              disabled={hasVoted || r.status === 'APPROVED' || r.status === 'DENIED'}
+                              onClick={() => handleStatusUpdate(r.id, "APPROVED")} 
+                              className={`h-7 text-[10px] font-bold ${hasVoted ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-emerald-100'}`}
+                            >
+                              <Check className="mr-1 h-3 w-3" /> {hasVoted ? 'Voted Approve' : 'Approve'}
+                            </Button>
+                            
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              disabled={r.status === 'DENIED' || r.status === 'APPROVED'}
+                              onClick={() => handleStatusUpdate(r.id, "DENIED")} 
+                              className={`h-7 text-[10px] font-bold ${r.status === 'DENIED' ? 'bg-red-700' : 'bg-slate-200 text-slate-600 hover:bg-red-100'}`}
+                            >
+                              <X className="mr-1 h-3 w-3" /> {r.status === 'DENIED' ? 'Denied' : 'Deny'}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

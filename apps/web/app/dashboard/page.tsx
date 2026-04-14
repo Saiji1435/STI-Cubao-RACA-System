@@ -216,7 +216,7 @@ function StaffDashboardView() {
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center">
         <h3 className="text-lg font-black uppercase tracking-tight mb-2">Ready to File?</h3>
         <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
-          Submit your requests for venue and equipment. Remember the STI Cubao 2-day lead time rule.
+          Submit your requests for venue and equipment. Remember the STI Cubao 1-week lead time rule.
         </p>
         <Link href="/dashboard/raca">
           <Button size="lg" className="bg-slate-900 hover:bg-black font-bold px-10">

@@ -1,11 +1,14 @@
 // lib/actions.ts
 "use server";
-import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers"; // Import cookies to access the session
 
+import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+
+/**
+ * Action to submit a new RACA request
+ */
 export async function submitRacaRequest(prevState: any, formData: FormData) {
   const cookieStore = await cookies();
-  // Get all cookies to forward to the backend
   const cookieHeader = cookieStore.toString();
 
   const data = {
@@ -19,10 +22,9 @@ export async function submitRacaRequest(prevState: any, formData: FormData) {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/requests`, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
-        // FORWARD THE COOKIES HERE
-        "Cookie": cookieHeader 
+        "Cookie": cookieHeader,
       },
       body: JSON.stringify(data),
     });
@@ -38,5 +40,46 @@ export async function submitRacaRequest(prevState: any, formData: FormData) {
   } catch (err) {
     console.error("Action Error:", err);
     return { error: "Could not send request. Check backend connection." };
+  }
+}
+
+/**
+ * Action for Admins and Heads to update request status (Approve/Deny)
+ */
+export async function updateRacaStatus(
+  racaId: string,
+  newStatus: "APPROVED" | "DENIED" | "PENDING"
+) {
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
+
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/requests/${racaId}/status`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Cookie": cookieHeader,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      }
+    );
+
+    if (!res.ok) {
+      const errorDetail = await res.json();
+      console.error("Status Update Error:", errorDetail);
+      return { error: errorDetail.message || "Failed to update status" };
+    }
+
+    // This triggers the server-side cache refresh so the UI updates for all users
+    revalidatePath("/dashboard/raca");
+    // If you have a separate approval page route, revalidate that too:
+    revalidatePath("/dashboard/approval"); 
+
+    return { success: true };
+  } catch (err) {
+    console.error("Connection Error:", err);
+    return { error: "Connection to STI Backend failed." };
   }
 }

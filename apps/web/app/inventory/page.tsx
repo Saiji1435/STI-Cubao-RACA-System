@@ -2,36 +2,58 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
-import { Package, MapPin, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useSession } from "../../lib/auth-client"; // Import session hook
+import { Package, MapPin, Loader2, AlertCircle, CheckCircle2, ShieldAlert } from "lucide-react";
 
 export default function InventoryPage() {
+  const { data: session, isPending: sessionLoading } = useSession();
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const { data: items, isLoading } = useQuery({
+  const { data: items, isLoading: itemsLoading } = useQuery({
     queryKey: ["inventory"],
     queryFn: () => apiFetch("/inventory"),
+    // Only fetch if user is authorized
+    enabled: !!session && (session.user.role === "ADMIN" || session.user.role === "HEAD"),
   });
+
+  // 1. Handle Loading State for Session
+  if (sessionLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // 2. Security Check: Restricted Access UI
+  const isAdminOrHead = session?.user?.role === "ADMIN" || session?.user?.role === "HEAD";
+
+  if (!isAdminOrHead) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+        <ShieldAlert className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tighter">Access Denied</h2>
+        <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">This module is restricted to Department Heads and Administrators only.</p>
+      </div>
+    );
+  }
 
   const handleMarkDefective = async (id: string) => {
     setProcessingId(id);
     try {
-      // Now perfectly matches the updated apiFetch signature
       await apiFetch(`/inventory/${id}/defective`, { 
         method: "PATCH" 
       });
-      
-      // Forces TanStack Query to fetch fresh data from the DB
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
     } catch (err) {
       console.error("Action failed:", err);
-      alert("Only Admins/Heads can mark items as defective.");
     } finally {
       setProcessingId(null);
     }
   };
 
-  if (isLoading) return (
+  if (itemsLoading) return (
     <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-200 rounded-xl">
       <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-2" />
       <span className="text-[10px] font-black uppercase text-slate-400">Syncing STI Assets...</span>
@@ -44,6 +66,9 @@ export default function InventoryPage() {
         <h2 className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-2">
           <Package className="h-4 w-4 text-blue-400" /> Equipment Management
         </h2>
+        <span className="text-[9px] font-black text-blue-400 uppercase bg-blue-900/30 px-2 py-1 rounded">
+          Authorized Access: {session.user.role}
+        </span>
       </div>
 
       <div className="overflow-x-auto">

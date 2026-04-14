@@ -1,6 +1,5 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
-import { Prisma, ItemCondition } from '@prisma/client';
 
 @Injectable()
 export class InventoryService {
@@ -9,26 +8,19 @@ export class InventoryService {
   async findAll() {
     return this.prisma.inventory.findMany({
       include: { room: true },
+      orderBy: { itemName: 'asc' },
     });
   }
 
-  async markDefective(id: string, userId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const item = await tx.inventory.update({
-        where: { id },
-        data: { condition: ItemCondition.DEFECTIVE },
-      });
+  async update(id: string, data: any) {
+    // Check if item exists first
+    const existing = await this.prisma.inventory.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Inventory item not found');
 
-      await tx.eventLog.create({
-        data: {
-          action: 'REPORT_DAMAGE',
-          summary: `Asset ${item.itemName} was marked as DEFECTIVE.`,
-          userId: userId,
-          inventoryId: id,
-        },
-      });
-
-      return item;
+    return this.prisma.inventory.update({
+      where: { id },
+      data,
+      include: { room: true }
     });
   }
 }

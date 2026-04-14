@@ -1,20 +1,27 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-// Import AuthGuard and the Session decorators
-import { AuthGuard, Session, UserSession } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '@/auth/auth.guard';
+import { Roles } from '@/auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('inventory')
-@UseGuards(AuthGuard) // Use the standard NestJS Guard pattern
+@UseGuards(AuthGuard) // Protects the entire inventory route
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
+  // Anyone logged in can view the inventory
   @Get()
-  getAllItems(@Session() session: UserSession) {
-    // Now session.user.role should be accessible if defined in auth.ts
-    if (session.user.role === 'admin') {
-        console.log("Admin access granted");
-    }
-    
+  async findAll() {
     return this.inventoryService.findAll();
+  }
+
+  // ONLY Admin or Head can update item status or location
+  @Patch(':id')
+  @Roles(Role.ADMIN, Role.HEAD) 
+  async update(
+    @Param('id') id: string, 
+    @Body() updateData: { condition?: any; roomId?: number; quantity?: number }
+  ) {
+    return this.inventoryService.update(id, updateData);
   }
 }

@@ -100,10 +100,12 @@ model Request {
   startDate   DateTime @default(now()) 
   endDate     DateTime @default(now())
   
+  approvals   Approval[]
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   roomId      Int
   room        Room     @relation(fields: [roomId], references: [id])
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -193,12 +195,16 @@ model EventLog {
 
 model Approval {
   id           String   @id @default(uuid())
-  racaId       String
-  raca         Raca     @relation(fields: [racaId], references: [id], onDelete: Cascade)
+  racaId       String?
+  raca         Raca?     @relation(fields: [racaId], references: [id], onDelete: Cascade)
+
+  requestId    String?
+  request      Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
   approverId   String
   approver     User     @relation(fields: [approverId], references: [id])
   roleType     Role     
   status       String   @default("APPROVED")
-  signatureUrl String   
+  signatureUrl String?   
   signedAt     DateTime @default(now())
 }
