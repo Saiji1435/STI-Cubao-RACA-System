@@ -1,13 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "../../lib/auth-client";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { FileText, CheckCircle, Clock, Activity, MapPin, Package, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
-import { submitRacaRequest } from "../../lib/actions"; // Import your server action
 
 export default function OverviewPage() {
   const { data: session, isPending: sessionLoading } = useSession();
@@ -20,8 +18,10 @@ export default function OverviewPage() {
     );
   }
 
-  const userRole = (session?.user as any)?.role;
-  const isAdminOrHead = userRole === "ADMIN" || userRole === "HEAD";
+  const userRole = (session?.user as any)?.role || "";
+  
+  // UPDATED: Use startsWith to match ADMIN_MIS, HEAD_DEPT, etc.
+  const isAdminOrHead = userRole.startsWith("ADMIN") || userRole.startsWith("HEAD");
 
   return (
     <div className="p-8 space-y-8">
@@ -57,16 +57,16 @@ function AdminDashboardView() {
   const fetchAllRequests = async () => {
     setIsLoading(true);
     try {
-      // We use credentials: "include" to pass the session to the backend
       const response = await fetch(`${API_BASE}/requests`, { 
         credentials: "include" 
       });
-      const data = await response.json();
-
-      console.log("RAW DATA FROM BACKEND:", data);
       
+      if (!response.ok) throw new Error("Fetch failed");
+      
+      const data = await response.json();
       setRequests(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error("Dashboard Fetch Error:", error);
       toast.error("Failed to sync system logs");
     } finally {
       setIsLoading(false);
@@ -77,19 +77,17 @@ function AdminDashboardView() {
     fetchAllRequests();
   }, []);
 
-  // Filter logic for the search bar
   const filteredRequests = requests.filter((req) => {
     const search = searchTerm.toLowerCase();
     return (
       req.description?.toLowerCase().includes(search) ||
-      req.room?.name?.toLowerCase().includes(search) || // Note: req.room.name
-      req.user?.name?.toLowerCase().includes(search)    // Note: req.user.name
+      req.room?.name?.toLowerCase().includes(search) ||
+      req.user?.name?.toLowerCase().includes(search)
     );
   });
 
   return (
     <div className="space-y-6">
-      {/* STAT CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard label="Total Filings" value={requests.length.toString()} icon={<Activity size={18} className="text-blue-500" />} />
         <StatCard label="Pending" value={requests.filter(r => r.status === 'PENDING').length.toString()} icon={<Clock size={18} className="text-amber-500" />} />
@@ -105,7 +103,6 @@ function AdminDashboardView() {
               <p className="text-[10px] text-slate-400 font-bold uppercase">Cross-Department Activity</p>
             </div>
             
-            {/* SEARCH BAR */}
             <div className="relative w-full md:w-72">
               <input 
                 type="text"
@@ -181,10 +178,11 @@ function StaffDashboardView() {
       const response = await fetch(`${API_BASE}/requests`, { 
         credentials: "include" 
       });
+      if (!response.ok) throw new Error("Failed fetch");
       const data = await response.json();
       setUserRequests(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to fetch personal stats");
+      console.error("Staff Dashboard Error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +192,6 @@ function StaffDashboardView() {
     fetchUserStats();
   }, []);
 
-  // Calculate dynamic stats
   const pending = userRequests.filter(r => r.status === 'PENDING').length;
   const approved = userRequests.filter(r => r.status === 'APPROVED').length;
   const total = userRequests.length;

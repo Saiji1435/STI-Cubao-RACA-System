@@ -1,26 +1,27 @@
 // apps/web/hooks/use-auth.ts
-import { authClient } from "../lib/auth-client"; // Your Better Auth client
-import { Role } from "@prisma/client";
+import { authClient } from "../lib/auth-client"; 
+import { isAuthorized } from "../lib/config"; // Import your centralized logic
 
 export function useAuth() {
   const { data: session, isPending, error } = authClient.useSession();
 
   const user = session?.user;
 
-  // Check if the user has administrative privileges
-  // This helps show/hide UI elements before the backend guard even kicks in
-  const isPrivileged = user?.role === "ADMIN" || user?.role === "HEAD";
-  const isHead = user?.role === "HEAD";
-  const isAdmin = user?.role === "ADMIN";
+  // Uses the centralized helper to check for Admin/Head status
+  const isPrivileged = isAuthorized(user?.role);
+  
+  // Specific role checks using your system's naming convention
+  const isSuperAdmin = user?.role === "ADMIN_MAIN";
+  const isHead = user?.role?.includes("HEAD");
 
   return {
     user,
     session,
     isPending,
     error,
-    isPrivileged,
+    isPrivileged, // Use this for showing Inventory/Room buttons
+    isSuperAdmin,
     isHead,
-    isAdmin,
     isAuthenticated: !!session,
   };
 }

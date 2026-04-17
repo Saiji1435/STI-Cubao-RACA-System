@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {/* Clean, official RACA text scaled up */}
                 <div className="flex flex-col justify-center">
                   <span className="font-black text-[36px] uppercase leading-none text-slate-900">
-                    RACA
+
                   </span>
                   <span className="text-[18px] font-bold text-slate-600 uppercase tracking-tight mt-1">
                     REQUEST FOR APPROVAL OF CAMPUS ACTIVITY/VENUE
@@ -38,12 +38,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* Admin Profile - Scaled to match the larger header */}
             <div className="flex items-center gap-5">
               <div className="text-right leading-tight hidden sm:block">
-                <p className="text-[18px] font-bold text-slate-800 uppercase tracking-tight">MIS Admin</p>
-                <p className="text-[12px] text-blue-700 font-black uppercase tracking-tighter">ADMIN</p>
+                <p className="text-[18px] font-bold text-slate-800 uppercase tracking-tight"></p>
+                <p className="text-[12px] text-blue-700 font-black uppercase tracking-tighter"></p>
               </div>
               {/* Scaled the avatar box slightly to balance the header */}
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 border-2 border-white flex items-center justify-center text-white font-black text-sm shadow-lg">
-                MIS
+                
               </div>
             </div>
           </header>

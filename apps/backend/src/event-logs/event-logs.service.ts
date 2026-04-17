@@ -1,19 +1,28 @@
+// apps/backend/src/event-logs/event-logs.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
-import { CreateEventLogDto } from './domain/create-event-log.dto';
 
 @Injectable()
 export class EventLogsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.eventLog.findMany({
-      include: { user: { select: { name: true, email: true } } },
-      orderBy: { createdAt: 'desc' },
+  // Ensure this is INSIDE the class braces!
+  async getSystemHistory() {
+    return this.prisma.raca.findMany({
+      where: {
+        OR: [
+          { status: 'APPROVED' },
+          { endDate: { lt: new Date() } } 
+        ]
+      },
+      include: {
+        requestor: { select: { name: true, role: true } },
+        room: { select: { name: true } },
+        approvals: true
+      },
+      orderBy: { endDate: 'desc' }
     });
   }
 
-  async create(data: CreateEventLogDto) {
-    return this.prisma.eventLog.create({ data });
-  }
+  // If you have other methods like create(), they go here too
 }

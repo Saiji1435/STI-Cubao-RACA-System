@@ -1,16 +1,23 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Patch, Param, Body, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '@/auth/auth.guard';
+import { RolesGuard } from '@/auth/guards/roles.guard';
+import { Roles } from '@/auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
+
 @Controller('rooms')
+@UseGuards(AuthGuard, RolesGuard)
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
-  @Get()
-  @AllowAnonymous()
-  async getAll() { return await this.roomsService.findAll(); }
-
-  @Post()
-  async create(@Body() body: { name: string; description?: string }) {
-    return await this.roomsService.create(body);
+  @Patch(':id/status')
+  // Only the Building Admin or Super Admin can manually override room status
+  @Roles(Role.ADMIN_MAIN, Role.ADMIN_BUILDING)
+  async toggleAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('isAvailable') isAvailable: boolean,
+    @Req() req: any
+  ) {
+    return this.roomsService.updateStatus(id, isAvailable, req.user.id);
   }
 }

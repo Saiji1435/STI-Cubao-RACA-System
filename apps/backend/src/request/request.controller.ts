@@ -28,7 +28,8 @@ export class RequestController {
   async getRequests(@Session() session: UserSession) {
     const { user } = session;
     
-    const isManagement = user.role === Role.ADMIN || user.role === Role.HEAD;
+    // UPDATED: Check for ANY role starting with ADMIN or HEAD
+    const isManagement = user.role.startsWith('ADMIN') || user.role.startsWith('HEAD');
     
     if (isManagement) {
       return this.requestService.findAll();
@@ -45,8 +46,8 @@ export class RequestController {
     @Session() session: UserSession,
     @Body() createRequestDto: CreateRequestDto 
   ) {
-    // Restricts Admins from filing to keep the database clean
-    if (session.user.role === Role.ADMIN) {
+    // UPDATED: Restrict any ADMIN variant from filing (keeps DB clean for STI Cubao)
+    if (session.user.role.startsWith('ADMIN')) {
       throw new ForbiddenException('Admins should manage schedules directly in the Schedule module.');
     }
 
@@ -55,26 +56,24 @@ export class RequestController {
 
   /**
    * Update Request Status (Multi-Admin Approval logic).
-   * Restricted to ADMIN and HEAD roles.
+   * Restricted to specific ADMIN and HEAD roles.
    */
   @Patch(':id/status')
   async updateStatus(
-    @Param('id', ParseUUIDPipe) id: string, // Validate UUID format
+    @Param('id', ParseUUIDPipe) id: string, 
     @Body() updateStatusDto: UpdateStatusDto,
     @Session() session: UserSession
   ) {
     const { user } = session;
 
-    // 1. Role Security Check
-    const isAuthorized = user.role === Role.ADMIN || user.role === Role.HEAD;
+    // UPDATED: Dynamic role check for approval permissions
+    const isAuthorized = user.role.startsWith('ADMIN') || user.role.startsWith('HEAD');
+    
     if (!isAuthorized) {
       throw new ForbiddenException('Only Admins or Department Heads can approve requests.');
     }
 
-    // 2. Call Service with all 3 required arguments:
-    // - id: The Request ID
-    // - status: 'APPROVED' or 'DENIED' from the DTO
-    // - user.id: The ID of the Admin/Head currently clicking the button
+    // Pass Request ID, the new Status, and the Signatory's ID
     return this.requestService.updateStatus(id, updateStatusDto.status, user.id);
   }
 }

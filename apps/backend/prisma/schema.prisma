@@ -1,28 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model User {
-  id            String      @id @default(uuid())
-  email         String      @unique
-  name          String?
-  password      String?
-  emailVerified Boolean     @default(false)
-  image         String?
-  role          Role        @default(STAFF)
-  sessions      Session[]
-  accounts      Account[]
-  logs          EventLog[]
-  requests      Request[]
-  racas         Raca[]      
-  approvals     Approval[]  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id        String     @id @default(uuid())
+  email     String     @unique
+  name      String?
+  role      Role       @default(STAFF)
+  createdAt DateTime   @default(now())
+  accounts  Account[]
+  approvals Approval[]
+  logs      EventLog[]
+  racas     Raca[]
+  requests  Request[]
+  sessions  Session[]
 }
 
 model Session {
@@ -42,7 +38,6 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -52,6 +47,7 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Verification {
@@ -63,9 +59,137 @@ model Verification {
   updatedAt  DateTime? @updatedAt
 }
 
+model Room {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  isAvailable Boolean     @default(true)
+  capacity    Int         @default(50)
+  floor       String
+  type        String
+  inventories Inventory[]
+  items       Item[]
+  racas       Raca[]
+  requests    Request[]
+  schedules   Schedule[]
+}
+
+model Request {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      String     @default("PENDING")
+  startDate   DateTime   @default(now())
+  endDate     DateTime   @default(now())
+  userId      String
+  roomId      Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  approvals   Approval[]
+  room        Room       @relation(fields: [roomId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+}
+
+model Item {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  quantity Int    @default(0)
+  roomId   Int?
+  room     Room?  @relation(fields: [roomId], references: [id])
+}
+
+model Inventory {
+  id          String         @id @default(uuid())
+  itemName    String
+  quantity    Int            @default(0)
+  imageUrl    String?
+  condition   ItemCondition  @default(GOOD)
+  roomId      Int
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  logs        EventLog[]
+  room        Room           @relation(fields: [roomId], references: [id])
+  checkouts   ItemCheckout[]
+  racaRecords Raca[]
+}
+
+model Raca {
+  id               String     @id @default(uuid())
+  requestorId      String
+  roomId           Int?
+  inventoryId      String?
+  natureOfActivity String
+  startDate        DateTime
+  endDate          DateTime
+  status           String     @default("PENDING")
+  filePath         String?
+  layoutPath       String?
+  approvals        Approval[]
+  eventLogs        EventLog[]
+  inventory        Inventory? @relation(fields: [inventoryId], references: [id])
+  requestor        User       @relation(fields: [requestorId], references: [id])
+  room             Room?      @relation(fields: [roomId], references: [id])
+  schedule         Schedule?
+}
+
+model Schedule {
+  id        String         @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime
+  attendees Int            @default(1)
+  status    String         @default("PENDING")
+  roomId    Int
+  racaId    String?        @unique
+  createdAt DateTime       @default(now())
+  itemsUsed ItemCheckout[]
+  raca      Raca?          @relation(fields: [racaId], references: [id])
+  room      Room           @relation(fields: [roomId], references: [id])
+}
+
+model ItemCheckout {
+  id          String    @id @default(uuid())
+  inventoryId String
+  scheduleId  String
+  quantity    Int       @default(1)
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  schedule    Schedule  @relation(fields: [scheduleId], references: [id])
+}
+
+model EventLog {
+  id          String     @id @default(uuid())
+  action      String
+  summary     String
+  userId      String
+  racaId      String?
+  inventoryId String?
+  createdAt   DateTime   @default(now())
+  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
+  raca        Raca?      @relation(fields: [racaId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+}
+
+model Approval {
+  id           String   @id @default(uuid())
+  racaId       String?
+  requestId    String?
+  approverId   String
+  roleType     Role
+  status       String   @default("APPROVED")
+  signatureUrl String?
+  signedAt     DateTime @default(now())
+  approver     User     @relation(fields: [approverId], references: [id])
+  raca         Raca?    @relation(fields: [racaId], references: [id], onDelete: Cascade)
+  request      Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
 enum Role {
   ADMIN
-  HEAD
+  ADMIN_MAIN
+  ADMIN_MIS
+  ADMIN_DSA
+  HEAD_SA
+  HEAD_ACADEMIC
+  ADMIN_BUILDING
+  HEAD_DEPT
   FACULTY
   STAFF
 }
@@ -74,137 +198,4 @@ enum ItemCondition {
   GOOD
   DEFECTIVE
   REPAIR_PENDING
-}
-
-model Room {
-  id          Int         @id @default(autoincrement())
-  name        String      @unique
-  floor       String?
-  type        String?
-  description String?
-  capacity    Int         @default(50) 
-  items       Item[]      
-  inventory   Inventory[]
-  schedules   Schedule[]
-  requests    Request[]
-  racas       Raca[]       
-}
-
-model Request {
-  id          String   @id @default(uuid())
-  title       String
-  description String?  @db.Text
-  status      String   @default("PENDING")
-
-  // Adding these makes your system "Schedule-Aware"
-  startDate   DateTime @default(now()) 
-  endDate     DateTime @default(now())
-  
-  approvals   Approval[]
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  roomId      Int
-  room        Room     @relation(fields: [roomId], references: [id])
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Item {
-  id       Int    @id @default(autoincrement())
-  name     String @unique
-  quantity Int    @default(0) 
-  roomId   Int?   
-  room     Room?  @relation(fields: [roomId], references: [id])
-}
-
-model Inventory {
-  id          String        @id @default(uuid())
-  itemName    String
-  quantity    Int           @default(0)
-  imageUrl    String?
-  condition   ItemCondition @default(GOOD)
-  roomId      Int
-  room        Room          @relation(fields: [roomId], references: [id])
-  racaRecords Raca[]
-  checkouts   ItemCheckout[] 
-  logs        EventLog[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
-
-model Raca {
-  id                String      @id @default(uuid())
-  requestorId       String
-  requestor         User        @relation(fields: [requestorId], references: [id])
-  natureOfActivity  String
-  objectives        String      @db.Text
-  startDate         DateTime
-  endDate           DateTime
-  expectedAudience  Int?
-  speaker           String?
-  roomId            Int?
-  room              Room?       @relation(fields: [roomId], references: [id])
-  otherVenue        String?
-  inventoryId       String?
-  inventory         Inventory?  @relation(fields: [inventoryId], references: [id])
-  status            String      @default("PENDING_HEAD_APPROVAL") 
-  filePath          String?    
-  eventLogs         EventLog[]
-  approvals         Approval[] 
-  schedule          Schedule?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-}
-
-model Schedule {
-  id        String   @id @default(uuid())
-  startTime DateTime
-  endTime   DateTime
-  attendees Int      @default(1) 
-  status    String   @default("PENDING") 
-  roomId    Int
-  room      Room     @relation(fields: [roomId], references: [id])
-  racaId    String?  @unique
-  raca      Raca?    @relation(fields: [racaId], references: [id])
-  itemsUsed ItemCheckout[]
-  createdAt DateTime @default(now())
-}
-
-model ItemCheckout {
-  id          String    @id @default(uuid())
-  inventoryId String
-  inventory   Inventory @relation(fields: [inventoryId], references: [id])
-  scheduleId  String
-  schedule    Schedule  @relation(fields: [scheduleId], references: [id])
-  quantity    Int       @default(1)
-}
-
-model EventLog {
-  id          String     @id @default(uuid())
-  action      String 
-  summary     String     @db.Text
-  userId      String
-  user        User       @relation(fields: [userId], references: [id])
-  racaId      String?
-  raca        Raca?      @relation(fields: [racaId], references: [id])
-  inventoryId String?
-  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
-  createdAt   DateTime   @default(now())
-}
-
-model Approval {
-  id           String   @id @default(uuid())
-  racaId       String?
-  raca         Raca?     @relation(fields: [racaId], references: [id], onDelete: Cascade)
-
-  requestId    String?
-  request      Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  approverId   String
-  approver     User     @relation(fields: [approverId], references: [id])
-  roleType     Role     
-  status       String   @default("APPROVED")
-  signatureUrl String?   
-  signedAt     DateTime @default(now())
 }
